@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhixun.item.mapper.ItemPostMapper">
+
+    <resultMap id="PostResultMap" type="com.zhixun.item.domain.ItemPost">
+        <id column="id" property="id"/>
+        <result column="post_no" property="postNo"/>
+        <result column="publisher_id" property="publisherId"/>
+        <result column="item_type" property="itemType"/>
+        <result column="status" property="status"/>
+        <result column="title" property="title"/>
+        <result column="category_id" property="categoryId"/>
+        <result column="category_name" property="categoryName"/>
+        <result column="item_name" property="itemName"/>
+        <result column="description" property="description"/>
+        <result column="public_features" property="publicFeatures"/>
+        <result column="private_features" property="privateFeatures"/>
+        <result column="occurred_at" property="occurredAt"/>
+        <result column="campus_area" property="campusArea"/>
+        <result column="location_name" property="locationName"/>
+        <result column="color" property="color"/>
+        <result column="brand" property="brand"/>
+        <result column="contact_hint" property="contactHint"/>
+        <result column="view_count" property="viewCount"/>
+        <result column="published_at" property="publishedAt"/>
+        <result column="completed_at" property="completedAt"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+        <result column="created_by" property="createdBy"/>
+        <result column="updated_by" property="updatedBy"/>
+        <result column="deleted" property="deleted"/>
+    </resultMap>
+
+    <sql id="PostColumns">
+        p.id, p.post_no, p.publisher_id, p.item_type, p.status, p.title,
+        p.category_id, c.name AS category_name, p.item_name, p.description,
+        p.public_features, p.private_features, p.occurred_at, p.campus_area,
+        p.location_name, p.color, p.brand, p.contact_hint, p.view_count,
+        p.published_at, p.completed_at, p.created_at, p.updated_at,
+        p.created_by, p.updated_by, p.deleted
+    </sql>
+
+    <sql id="PageConditions">
+        p.deleted = 0
+        <if test="itemType != null">AND p.item_type = #{itemType}</if>
+        <if test="categoryId != null">AND p.category_id = #{categoryId}</if>
+        <if test="status != null">AND p.status = #{status}</if>
+        <if test="publisherId != null">AND p.publisher_id = #{publisherId}</if>
+        <if test="keyword != null and keyword != ''">
+            AND (p.title LIKE CONCAT('%', #{keyword}, '%')
+                 OR p.item_name LIKE CONCAT('%', #{keyword}, '%')
+                 OR p.description LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+    </sql>
+
+    <insert id="insert" parameterType="com.zhixun.item.domain.ItemPost"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO item_post (
+            post_no, publisher_id, item_type, status, title, category_id,
+            item_name, description, public_features, private_features,
+            occurred_at, campus_area, location_name, color, brand, contact_hint,
+            view_count, published_at, created_by, updated_by, deleted
+        ) VALUES (
+            #{postNo}, #{publisherId}, #{itemType}, #{status}, #{title}, #{categoryId},
+            #{itemName}, #{description}, #{publicFeatures}, #{privateFeatures},
+            #{occurredAt}, #{campusArea}, #{locationName}, #{color}, #{brand}, #{contactHint},
+            0, #{publishedAt}, #{createdBy}, #{updatedBy}, 0
+        )
+    </insert>
+
+    <select id="findById" resultMap="PostResultMap">
+        SELECT <include refid="PostColumns"/>
+        FROM item_post p
+        JOIN item_category c ON c.id = p.category_id
+        WHERE p.id = #{id} AND p.deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="findPage" resultMap="PostResultMap">
+        SELECT <include refid="PostColumns"/>
+        FROM item_post p
+        JOIN item_category c ON c.id = p.category_id
+        WHERE <include refid="PageConditions"/>
+        ORDER BY COALESCE(p.published_at, p.created_at) DESC, p.id DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="countPage" resultType="long">
+        SELECT COUNT(1)
+        FROM item_post p
+        WHERE <include refid="PageConditions"/>
+    </select>
+
+    <update id="updateOwned">
+        UPDATE item_post
+        SET title = #{post.title}, category_id = #{post.categoryId},
+            item_name = #{post.itemName}, description = #{post.description},
+            public_features = #{post.publicFeatures}, private_features = #{post.privateFeatures},
+            occurred_at = #{post.occurredAt}, campus_area = #{post.campusArea},
+            location_name = #{post.locationName}, color = #{post.color},
+            brand = #{post.brand}, contact_hint = #{post.contactHint},
+            updated_by = #{publisherId}
+        WHERE id = #{post.id} AND publisher_id = #{publisherId}
+          AND deleted = 0 AND status IN ('DRAFT', 'SEARCHING')
+    </update>
+
+    <update id="publishOwned">
+        UPDATE item_post
+        SET status = 'SEARCHING', published_at = CURRENT_TIMESTAMP, updated_by = #{publisherId}
+        WHERE id = #{id} AND publisher_id = #{publisherId}
+          AND deleted = 0 AND status = 'DRAFT'
+    </update>
+
+    <update id="softDeleteOwned">
+        UPDATE item_post
+        SET deleted = 1, status = 'REMOVED', updated_by = #{publisherId}
+        WHERE id = #{id} AND publisher_id = #{publisherId}
+          AND deleted = 0 AND status IN ('DRAFT', 'SEARCHING')
+    </update>
+
+    <update id="incrementViewCount">
+        UPDATE item_post SET view_count = view_count + 1
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <update id="startClaimVerification">
+        UPDATE item_post SET status = 'CLAIM_VERIFYING'
+        WHERE id = #{id} AND deleted = 0 AND status = 'SEARCHING'
+    </update>
+
+    <update id="completeClaim">
+        UPDATE item_post
+        SET status = 'COMPLETED', completed_at = CURRENT_TIMESTAMP, updated_by = #{publisherId}
+        WHERE id = #{id} AND publisher_id = #{publisherId}
+          AND deleted = 0 AND status = 'CLAIM_VERIFYING'
+    </update>
+</mapper>

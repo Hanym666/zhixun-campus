@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhixun.item.mapper.ItemImageMapper">
+
+    <resultMap id="ImageResultMap" type="com.zhixun.item.domain.ItemImage">
+        <id column="id" property="id"/>
+        <result column="post_id" property="postId"/>
+        <result column="image_url" property="imageUrl"/>
+        <result column="sort_order" property="sortOrder"/>
+        <result column="cover_image" property="coverImage"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.zhixun.item.domain.ItemImage"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO item_image (post_id, image_url, sort_order, cover_image)
+        VALUES (#{postId}, #{imageUrl}, #{sortOrder}, #{coverImage})
+    </insert>
+
+    <select id="findByPostId" resultMap="ImageResultMap">
+        SELECT id, post_id, image_url, sort_order, cover_image, created_at
+        FROM item_image WHERE post_id = #{postId}
+        ORDER BY cover_image DESC, sort_order, id
+    </select>
+
+    <select id="findById" resultMap="ImageResultMap">
+        SELECT id, post_id, image_url, sort_order, cover_image, created_at
+        FROM item_image WHERE id = #{id} LIMIT 1
+    </select>
+
+    <select id="countByPostId" resultType="int">
+        SELECT COUNT(1) FROM item_image WHERE post_id = #{postId}
+    </select>
+
+    <delete id="deleteById">
+        DELETE FROM item_image WHERE id = #{id}
+    </delete>
+
+    <update id="promoteFirstToCover">
+        UPDATE item_image SET cover_image = 1
+        WHERE id = (
+            SELECT id FROM (
+                SELECT id FROM item_image WHERE post_id = #{postId}
+                ORDER BY sort_order, id LIMIT 1
+            ) candidate
+        )
+    </update>
+</mapper>

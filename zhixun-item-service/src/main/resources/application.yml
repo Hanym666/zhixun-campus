@@ -1,0 +1,64 @@
+server:
+  port: ${ITEM_SERVICE_PORT:8082}
+
+spring:
+  application:
+    name: zhixun-item-service
+  config:
+    import:
+      - "optional:nacos:${spring.application.name}.yml?group=DEFAULT_GROUP&refreshEnabled=true"
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: "jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:zhixun_campus}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false"
+    username: ${MYSQL_USERNAME:root}
+    password: "${MYSQL_PASSWORD:}"
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: "${REDIS_PASSWORD:}"
+      database: ${REDIS_DATABASE:1}
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 25MB
+  cloud:
+    nacos:
+      server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+      username: ${NACOS_USERNAME:nacos}
+      password: ${NACOS_PASSWORD:nacos}
+      discovery:
+        server-addr: ${spring.cloud.nacos.server-addr}
+      config:
+        server-addr: ${spring.cloud.nacos.server-addr}
+        file-extension: yml
+
+mybatis:
+  mapper-locations: classpath*:mapper/**/*.xml
+  type-aliases-package: com.zhixun.item.domain
+  configuration:
+    map-underscore-to-camel-case: true
+
+zhixun:
+  security:
+    jwt:
+      issuer: zhixun-campus
+      # Development fallback only. Production and shared environments must set JWT_SECRET.
+      secret: ${JWT_SECRET:zhixun-campus-development-secret-change-before-production-2026}
+  elasticsearch:
+    uris: ${ELASTICSEARCH_URIS:http://127.0.0.1:9200}
+    item-index: ${ELASTICSEARCH_ITEM_INDEX:zhixun-items-v1}
+  ai:
+    base-url: ${AI_SERVICE_URL:http://127.0.0.1:8083}
+  storage:
+    item-images-path: ${ITEM_IMAGE_PATH:./.data/item-images}
+    item-images-public-path: /uploads/items/
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always

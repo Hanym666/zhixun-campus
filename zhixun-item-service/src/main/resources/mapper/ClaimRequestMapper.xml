@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhixun.item.mapper.ClaimRequestMapper">
+
+    <resultMap id="ClaimResultMap" type="com.zhixun.item.domain.ClaimRequest">
+        <id column="id" property="id"/>
+        <result column="claim_no" property="claimNo"/>
+        <result column="post_id" property="postId"/>
+        <result column="post_title" property="postTitle"/>
+        <result column="post_publisher_id" property="postPublisherId"/>
+        <result column="claimant_id" property="claimantId"/>
+        <result column="evidence" property="evidence"/>
+        <result column="status" property="status"/>
+        <result column="reviewer_id" property="reviewerId"/>
+        <result column="review_comment" property="reviewComment"/>
+        <result column="reviewed_at" property="reviewedAt"/>
+        <result column="handover_location" property="handoverLocation"/>
+        <result column="handover_at" property="handoverAt"/>
+        <result column="completed_at" property="completedAt"/>
+        <result column="version" property="version"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+        <result column="deleted" property="deleted"/>
+    </resultMap>
+
+    <sql id="ClaimColumns">
+        cr.id, cr.claim_no, cr.post_id, p.title AS post_title,
+        p.publisher_id AS post_publisher_id, cr.claimant_id, cr.evidence,
+        cr.status, cr.reviewer_id, cr.review_comment, cr.reviewed_at,
+        cr.handover_location, cr.handover_at, cr.completed_at, cr.version,
+        cr.created_at, cr.updated_at, cr.deleted
+    </sql>
+
+    <insert id="insert" parameterType="com.zhixun.item.domain.ClaimRequest"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO claim_request (
+            claim_no, post_id, claimant_id, evidence, status, version, deleted
+        ) VALUES (
+            #{claimNo}, #{postId}, #{claimantId}, #{evidence}, #{status}, 0, 0
+        )
+    </insert>
+
+    <select id="existsActive" resultType="boolean">
+        SELECT COUNT(1) &gt; 0
+        FROM claim_request
+        WHERE post_id = #{postId} AND claimant_id = #{claimantId}
+          AND deleted = 0 AND status IN ('PENDING', 'APPROVED', 'HANDING_OVER')
+    </select>
+
+    <select id="findById" resultMap="ClaimResultMap">
+        SELECT <include refid="ClaimColumns"/>
+        FROM claim_request cr
+        JOIN item_post p ON p.id = cr.post_id
+        WHERE cr.id = #{id} AND cr.deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="findPage" resultMap="ClaimResultMap">
+        SELECT <include refid="ClaimColumns"/>
+        FROM claim_request cr
+        JOIN item_post p ON p.id = cr.post_id
+        WHERE cr.deleted = 0
+        <if test="claimantId != null">AND cr.claimant_id = #{claimantId}</if>
+        <if test="publisherId != null">AND p.publisher_id = #{publisherId}</if>
+        ORDER BY cr.created_at DESC, cr.id DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="countPage" resultType="long">
+        SELECT COUNT(1)
+        FROM claim_request cr
+        JOIN item_post p ON p.id = cr.post_id
+        WHERE cr.deleted = 0
+        <if test="claimantId != null">AND cr.claimant_id = #{claimantId}</if>
+        <if test="publisherId != null">AND p.publisher_id = #{publisherId}</if>
+    </select>
+
+    <update id="approve">
+        UPDATE claim_request
+        SET status = 'APPROVED', reviewer_id = #{reviewerId},
+            review_comment = #{reviewComment}, reviewed_at = CURRENT_TIMESTAMP,
+            handover_location = #{handoverLocation}, handover_at = #{handoverAt},
+            version = version + 1
+        WHERE id = #{id} AND deleted = 0 AND status = 'PENDING'
+    </update>
+
+    <update id="reject">
+        UPDATE claim_request
+        SET status = 'REJECTED', reviewer_id = #{reviewerId},
+            review_comment = #{reviewComment}, reviewed_at = CURRENT_TIMESTAMP,
+            version = version + 1
+        WHERE id = #{id} AND deleted = 0 AND status = 'PENDING'
+    </update>
+
+    <update id="rejectOtherPending">
+        UPDATE claim_request
+        SET status = 'REJECTED', reviewer_id = #{reviewerId},
+            review_comment = '其他认领申请已通过', reviewed_at = CURRENT_TIMESTAMP,
+            version = version + 1
+        WHERE post_id = #{postId} AND id != #{approvedClaimId}
+          AND deleted = 0 AND status = 'PENDING'
+    </update>
+
+    <update id="complete">
+        UPDATE claim_request
+        SET status = 'COMPLETED', completed_at = CURRENT_TIMESTAMP, version = version + 1
+        WHERE id = #{id} AND deleted = 0 AND status = 'APPROVED'
+    </update>
+
+    <update id="cancel">
+        UPDATE claim_request
+        SET status = 'CANCELLED', version = version + 1
+        WHERE id = #{id} AND claimant_id = #{claimantId}
+          AND deleted = 0 AND status = 'PENDING'
+    </update>
+</mapper>

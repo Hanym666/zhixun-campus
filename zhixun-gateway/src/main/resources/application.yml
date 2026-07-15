@@ -1,0 +1,42 @@
+server:
+  port: ${GATEWAY_PORT:8080}
+
+spring:
+  application:
+    name: zhixun-gateway
+  config:
+    import:
+      - "optional:nacos:${spring.application.name}.yml?group=DEFAULT_GROUP&refreshEnabled=true"
+  cloud:
+    nacos:
+      server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+      username: ${NACOS_USERNAME:nacos}
+      password: ${NACOS_PASSWORD:nacos}
+      discovery:
+        server-addr: ${spring.cloud.nacos.server-addr}
+      config:
+        server-addr: ${spring.cloud.nacos.server-addr}
+        file-extension: yml
+    gateway:
+      routes:
+        - id: zhixun-user-service
+          uri: lb://zhixun-user-service
+          predicates:
+            - Path=/api/auth/**,/api/users/**,/api/admin/**
+        - id: zhixun-item-service
+          uri: lb://zhixun-item-service
+          predicates:
+            - Path=/api/items/**,/api/claims/**,/api/categories/**,/api/notifications/**,/uploads/items/**
+        - id: zhixun-ai-service
+          uri: "${AI_SERVICE_URI:http://127.0.0.1:8083}"
+          predicates:
+            - Path=/api/ai/**
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
